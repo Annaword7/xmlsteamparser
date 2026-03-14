@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XML Stream Parser</title>
+<style>
+:root {
+  --bg: #0e1117; --surface: #161b22; --surface2: #1c2333;
+  --border: #30363d; --text: #e6edf3; --text-muted: #8b949e;
+  --accent: #58a6ff; --accent-glow: rgba(88,166,255,.15);
+  --green: #3fb950; --orange: #d29922; --red: #f85149;
+  --tag-bg: #1f6feb22; --radius: 8px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{max-width:640px;margin:0 auto;padding-bottom:24px;overflow-y:auto;background:var(--bg);color:var(--text);font-family:'Segoe UI',-apple-system,sans-serif;font-size:13px;line-height:1.5}
+
+/* ── Header ─────────────────────────── */
+.header{padding:14px 20px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.header svg{flex-shrink:0}
+.header h1{font-size:15px;font-weight:600;letter-spacing:-.3px}
+.header .version{font-size:11px;color:var(--text-muted)}
+#supporterBadge{display:none;font-size:10px;background:linear-gradient(135deg,#f7971e,#ffd200);color:#000;padding:1px 7px;border-radius:10px;font-weight:600;letter-spacing:.3px}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:6px}
+.hdr-btn{background:none;border:1px solid var(--border);color:var(--text-muted);padding:3px 8px;border-radius:5px;font-size:11px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.hdr-btn:hover{color:var(--text);border-color:var(--text-muted)}
+.hdr-btn.dn{border-color:#f7971e55;color:#ffd200}
+.hdr-btn.dn:hover{background:#f7971e22}
+#langSel{background:var(--surface);color:var(--text-muted);border:1px solid var(--border);border-radius:5px;padding:2px 4px;font-size:11px;outline:none;cursor:pointer}
+
+/* ── Dropzone ───────────────────────── */
+.dropzone{margin:16px 20px;padding:32px 20px;border:2px dashed var(--border);border-radius:var(--radius);text-align:center;cursor:pointer;transition:all .2s;position:relative}
+.dropzone:hover,.dropzone.dragover{border-color:var(--accent);background:var(--accent-glow)}
+.dropzone input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.dropzone .icon{font-size:28px;margin-bottom:6px}
+.dropzone .label{color:var(--text-muted);font-size:12px}
+.dropzone .label span{color:var(--accent);text-decoration:underline}
+
+/* ── File info ──────────────────────── */
+.file-info{margin:0 20px 12px;padding:10px 14px;background:var(--surface);border-radius:var(--radius);display:none;gap:8px;align-items:center}
+.file-info.visible{display:flex}
+.file-info .fname{font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-info .fsize{color:var(--text-muted);font-size:12px;flex-shrink:0}
+
+/* ── Query panel ────────────────────── */
+.query-panel{margin:0 20px 12px;display:none}
+.query-panel.visible{display:block}
+.query-header{color:var(--accent);font-size:12px;font-weight:500;margin-bottom:8px}
+.query-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.query-grid label{font-size:11px;color:var(--text-muted);display:block;margin-bottom:2px}
+.query-grid input{width:100%;padding:6px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;outline:none;transition:border-color .2s}
+.query-grid input:focus{border-color:var(--accent)}
+.query-grid input::placeholder{color:#484f58}
+
+/* ── Buttons ────────────────────────── */
+.actions{margin:0 20px 16px;display:flex;gap:8px}
+.btn{flex:1;padding:8px 16px;border:none;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{filter:brightness(1.15)}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;filter:none}
+.btn-secondary{background:var(--surface);color:var(--text-muted);border:1px solid var(--border)}
+.btn-secondary:hover{color:var(--text);border-color:var(--text-muted)}
+/* Chameleon supporter button */
+body.supporter .btn-primary{background:linear-gradient(270deg,#f7971e,#ffd200,#3fb950,#58a6ff,#c084fc,#f7971e);background-size:600% 600%;animation:chameleon 6s ease infinite}
+@keyframes chameleon{0%{background-position:0 50%}50%{background-position:100% 50%}100%{background-position:0 50%}}
+
+/* ── Progress ───────────────────────── */
+.progress-section{margin:0 20px 16px;display:none}
+.progress-section.visible{display:block}
+.progress-bar-bg{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-bottom:6px}
+.progress-bar-fill{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--green));border-radius:3px;transition:width .3s ease}
+.progress-text{display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted)}
+
+/* ── Results ────────────────────────── */
+.results{margin:0 20px 16px;display:none}
+.results.visible{display:block}
+.result-card{background:var(--surface);border-radius:var(--radius);padding:14px;margin-bottom:10px}
+.result-card h3{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:10px}
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat-item .value{font-size:18px;font-weight:700;color:var(--accent);line-height:1.2}
+.stat-item .label{font-size:11px;color:var(--text-muted)}
+
+/* ── Hint card ──────────────────────── */
+.hint-card{background:var(--surface);border-radius:var(--radius);padding:0;margin-bottom:10px;border:1px solid var(--border);overflow:hidden;display:none}
+.hint-card.visible{display:block}
+.hint-toggle{width:100%;padding:10px 14px;background:none;border:none;color:var(--text-muted);font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:8px;transition:color .15s;text-align:left}
+.hint-toggle:hover{color:var(--text)}
+.hint-toggle .hint-arrow{transition:transform .2s;font-size:10px}
+.hint-toggle.open .hint-arrow{transform:rotate(90deg)}
+.hint-body{display:none;padding:0 14px 14px}
+.hint-body.open{display:block}
+.hint-legend{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px}
+.hint-legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-muted)}
+.hint-swatch{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.hint-code{background:rgba(0,0,0,.25);border-radius:6px;padding:12px 14px;font-family:'SF Mono','Cascadia Code',monospace;font-size:12px;line-height:2;overflow-x:auto;white-space:pre}
+.ht{color:#ff7b93;font-weight:600}.ha{color:#c4a7ff;font-weight:500}.hv{color:#7dd3a8}.hb{color:#5c6370}
+.ht,.ha,.hv{position:relative;cursor:default}
+.ht:hover,.ha:hover,.hv:hover{background:rgba(255,255,255,.07);border-radius:3px}
+[data-hint]:hover::after{content:attr(data-hint);position:absolute;bottom:calc(100% + 5px);left:50%;transform:translateX(-50%);background:#1f2937;color:#e5e7eb;font-family:'Segoe UI',sans-serif;font-size:11px;font-weight:500;padding:3px 9px;border-radius:5px;white-space:nowrap;pointer-events:none;z-index:10;border:1px solid #374151;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+.hint-desc{font-size:12px;color:var(--text-muted);margin-top:10px;line-height:1.6}
+.hint-desc code{font-family:'SF Mono',monospace;font-size:11px;padding:1px 5px;background:rgba(255,255,255,.05);border-radius:3px}
+
+/* ── Tag list ───────────────────────── */
+.tag-list{display:flex;flex-direction:column;gap:4px;max-height:320px;overflow-y:auto}
+.tag-item{background:var(--tag-bg);border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:11px;font-family:'SF Mono','Cascadia Code',monospace;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:4px;align-self:flex-start}
+.tag-item:hover{border-color:var(--accent);background:var(--accent-glow)}
+.tag-item .count{color:var(--text-muted);margin-left:4px}
+
+/* ── Preview overlay ────────────────── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;justify-content:center;align-items:center;backdrop-filter:blur(4px)}
+.overlay.visible{display:flex}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;width:90%;max-width:480px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.panel-lg{max-width:720px}
+.panel-hdr{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0}
+.panel-hdr .title{font-size:14px;font-weight:600}
+.panel-close{margin-left:auto;background:none;border:1px solid var(--border);color:var(--text-muted);width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.panel-close:hover{color:var(--text);border-color:var(--text-muted)}
+.panel-body{flex:1;overflow:auto;padding:16px 18px}
+.preview-code{font-family:'SF Mono','Cascadia Code','Courier New',monospace;font-size:12px;line-height:1.6;white-space:pre-wrap;word-break:break-all;color:var(--text);tab-size:2}
+.preview-code .sx-tag{color:#ff7b93}.preview-code .sx-attr{color:#c4a7ff}.preview-code .sx-val{color:#7dd3a8}.preview-code .sx-bra{color:#5c6370}.preview-code .sx-txt{color:#d4b86a}
+.preview-nav{padding:10px 18px 14px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:center;gap:12px;flex-shrink:0}
+.preview-nav button{padding:6px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;cursor:pointer;transition:all .15s}
+.preview-nav button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.preview-nav button:disabled{opacity:.3;cursor:not-allowed}
+.preview-nav .nav-info{color:var(--text-muted);font-size:12px;min-width:80px;text-align:center}
+
+/* ── Tree view ──────────────────────── */
+.tree-container{font-family:'SF Mono','Cascadia Code',monospace;font-size:12px;max-height:200px;overflow-y:auto}
+.tree-node{padding-left:16px;position:relative}
+.tree-node::before{content:'';position:absolute;left:6px;top:0;bottom:0;width:1px;background:var(--border)}
+.tree-label{padding:1px 0;cursor:default}
+.tree-label .tag-name{color:var(--accent)}
+.tree-label .tag-count{color:var(--text-muted);font-size:11px}
+
+/* ── Match table ────────────────────── */
+.match-table{width:100%;border-collapse:collapse;font-size:12px}
+.match-table th{text-align:left;padding:4px 8px;border-bottom:1px solid var(--border);color:var(--text-muted);font-weight:500}
+.match-table td{padding:4px 8px;border-bottom:1px solid #1c2129;font-family:'SF Mono',monospace;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ── Status bar ─────────────────────── */
+.status-bar{padding:8px 20px;border-top:1px solid var(--border);font-size:11px;color:var(--text-muted);display:none}
+.status-bar.visible{display:flex;justify-content:space-between}
+.status-bar .elapsed{color:var(--green)}.status-bar .throughput{color:var(--orange)}
+
+/* ── Modal shared ───────────────────── */
+.modal-title{font-size:15px;font-weight:600;margin-bottom:12px;text-align:center}
+.modal-desc{font-size:12px;color:var(--text-muted);text-align:center;margin-bottom:16px}
+.modal-btns{display:flex;gap:8px;margin-bottom:12px}
+.modal-btn{flex:1;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:13px;font-weight:500;cursor:pointer;text-align:center;transition:all .15s}
+.modal-btn:hover{border-color:var(--accent);color:var(--accent)}
+.modal-btn.active{border-color:var(--accent);background:var(--accent-glow);color:var(--accent)}
+.modal-textarea{width:100%;min-height:80px;padding:10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:12px;resize:vertical;outline:none;margin-bottom:10px}
+.modal-textarea:focus{border-color:var(--accent)}
+.modal-send{width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;transition:filter .15s}
+.modal-send:hover{filter:brightness(1.15)}
+.modal-msg{text-align:center;font-size:13px;padding:20px 0;color:var(--green)}
+
+/* ── Stars ──────────────────────────── */
+.stars{display:flex;justify-content:center;gap:6px;margin-bottom:14px}
+.star{font-size:28px;cursor:pointer;transition:transform .15s;color:var(--border);user-select:none}
+.star:hover{transform:scale(1.2)}
+.star.active{color:#ffd200}
+
+/* ── Donate amounts ─────────────────── */
+.dn-amounts{display:flex;gap:8px;justify-content:center;margin-bottom:14px}
+.dn-amt{padding:8px 16px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;font-weight:600;cursor:pointer;transition:all .15s}
+.dn-amt:hover{border-color:#f7971e}
+.dn-amt.active{border-color:#ffd200;background:linear-gradient(135deg,#f7971e22,#ffd20022);color:#ffd200}
+.dn-stripe{display:block;width:100%;padding:12px;background:linear-gradient(135deg,#f7971e,#ffd200);color:#000;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;text-align:center;text-decoration:none;margin-bottom:10px;transition:filter .15s}
+.dn-stripe:hover{filter:brightness(1.1)}
+.dn-already{display:block;text-align:center;color:var(--text-muted);font-size:12px;cursor:pointer;padding:6px;transition:color .15s}
+.dn-already:hover{color:var(--text)}
+
+/* ── Toast ──────────────────────────── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 20px;font-size:13px;color:var(--green);box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:200;display:none;white-space:nowrap}
+.toast.visible{display:block;animation:fadeup .3s ease}
+@keyframes fadeup{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+/* ── Scrollbar ──────────────────────── */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#58a6ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline>
+  </svg>
+  <h1>XML Stream Parser</h1>
+  <span class="version">v2.0</span>
+  <span id="supporterBadge">Supporter</span>
+  <div class="header-right">
+    <select id="langSel">
+      <option value="en">English</option>
+      <option value="ru">Русский</option>
+      <option value="de">Deutsch</option>
+      <option value="es">Español</option>
+      <option value="fr">Français</option>
+    </select>
+    <button class="hdr-btn" id="btnFeedback" data-i18n="feedbackBtn">Feedback</button>
+    <button class="hdr-btn" id="btnRate" data-i18n="rateBtn">Rate Us</button>
+    <button class="hdr-btn dn" id="btnDonate" data-i18n="donateBtn">Support</button>
+  </div>
+</div>
+
+<!-- Dropzone -->
+<div class="dropzone" id="dropzone">
+  <input type="file" id="fileInput" accept=".xml,.xsd,.xsl,.xslt,.svg,.rss,.atom,.plist,.gpx,.kml">
+  <div class="icon">📄</div>
+  <div class="label" id="dropLabel" data-i18n-html="dropzone"></div>
+  <div class="label" style="margin-top:4px" data-i18n="dropzoneSub"></div>
+</div>
+
+<!-- File info -->
+<div class="file-info" id="fileInfo">
+  <span class="fname" id="fileName"></span>
+  <span class="fsize" id="fileSize"></span>
+</div>
+
+<!-- Query panel -->
+<div class="query-panel" id="queryPanel">
+  <div class="query-header" data-i18n="searchHeader"></div>
+  <div class="query-grid">
+    <div><label data-i18n="tagName"></label><input type="text" id="qTagName" placeholder="product"></div>
+    <div><label data-i18n="attrName"></label><input type="text" id="qAttrName" placeholder="id"></div>
+    <div><label data-i18n="attrValue"></label><input type="text" id="qAttrValue" placeholder="12345"></div>
+    <div><label data-i18n="textContains"></label><input type="text" id="qTextContains" placeholder="keyword"></div>
+  </div>
+</div>
+
+<!-- Actions -->
+<div class="actions">
+  <button class="btn btn-primary" id="btnParse" disabled data-i18n="btnParse"></button>
+  <button class="btn btn-secondary" id="btnReset" style="display:none" data-i18n="btnReset"></button>
+</div>
+
+<!-- Progress -->
+<div class="progress-section" id="progressSection">
+  <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
+  <div class="progress-text"><span id="progressBytes">0 / 0</span><span id="progressPercent">0%</span></div>
+</div>
+
+<!-- Results -->
+<div class="results" id="results">
+  <div class="result-card" id="statsCard">
+    <h3 data-i18n="stats"></h3>
+    <div class="stat-grid" id="statGrid"></div>
+  </div>
+  <div class="hint-card" id="hintCard">
+    <button class="hint-toggle" id="hintToggle"><span class="hint-arrow">▶</span><span data-i18n="hintToggle"></span></button>
+    <div class="hint-body" id="hintBody">
+      <div class="hint-legend">
+        <div class="hint-legend-item"><div class="hint-swatch" style="background:#ff7b93"></div><span data-i18n="hintTagName"></span></div>
+        <div class="hint-legend-item"><div class="hint-swatch" style="background:#c4a7ff"></div><span data-i18n="hintAttrName"></span></div>
+        <div class="hint-legend-item"><div class="hint-swatch" style="background:#7dd3a8"></div><span data-i18n="hintAttrValue"></span></div>
+        <div class="hint-legend-item"><div class="hint-swatch" style="background:#5c6370"></div><span data-i18n="hintSyntax"></span></div>
+      </div>
+      <div class="hint-code" id="hintCode"></div>
+      <div class="hint-desc" id="hintDesc"></div>
+    </div>
+  </div>
+  <div class="result-card" id="topTagsCard">
+    <h3 data-i18n="elements"></h3>
+    <div style="font-size:11px;color:var(--text-muted);margin:-4px 0 10px" data-i18n="elementsDesc"></div>
+    <div class="tag-list" id="topTags"></div>
+  </div>
+  <div class="result-card" id="treeCard">
+    <h3 data-i18n="docStructure"></h3>
+    <div class="tree-container" id="treeView"></div>
+  </div>
+  <div class="result-card" id="matchCard" style="display:none">
+    <h3><span data-i18n="matchedElements"></span> (<span id="matchCount">0</span>)</h3>
+    <div style="max-height:180px;overflow-y:auto">
+      <table class="match-table">
+        <thead><tr><th data-i18n="thTag"></th><th data-i18n="thAttrs"></th><th data-i18n="thText"></th></tr></thead>
+        <tbody id="matchBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Status bar -->
+<div class="status-bar" id="statusBar"><span data-i18n="done"></span><span class="elapsed" id="elapsedTime"></span><span class="throughput" id="throughput"></span></div>
+
+<!-- Preview overlay -->
+<div class="overlay" id="previewOverlay">
+  <div class="panel panel-lg">
+    <div class="panel-hdr"><span class="title" id="previewTag"></span><span style="color:var(--text-muted);font-size:12px" id="previewCounter"></span><button class="panel-close" id="previewClose">&times;</button></div>
+    <div class="panel-body"><div class="preview-code" id="previewCode"></div></div>
+    <div class="preview-nav"><button id="previewPrev" data-i18n="prev"></button><span class="nav-info" id="previewNavInfo">1 / 1</span><button id="previewNext" data-i18n="next"></button></div>
+  </div>
+</div>
+
+<!-- Feedback overlay -->
+<div class="overlay" id="fbOverlay">
+  <div class="panel">
+    <div class="panel-hdr"><span class="title" data-i18n="fbTitle"></span><button class="panel-close" id="fbClose">&times;</button></div>
+    <div class="panel-body" id="fbBody">
+      <!-- Step 1: like / not -->
+      <div id="fbStep1">
+        <div class="modal-btns">
+          <button class="modal-btn" id="fbYes" data-i18n="fbYes"></button>
+          <button class="modal-btn" id="fbNo" data-i18n="fbNo"></button>
+        </div>
+      </div>
+      <!-- Step 2: textarea -->
+      <div id="fbStep2" style="display:none">
+        <div class="modal-desc" id="fbQuestion"></div>
+        <textarea class="modal-textarea" id="fbText" rows="4"></textarea>
+        <button class="modal-send" id="fbSend" data-i18n="fbSend"></button>
+      </div>
+      <!-- Step 3: thanks -->
+      <div id="fbStep3" style="display:none">
+        <div class="modal-msg" data-i18n="fbThanks"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Rate overlay -->
+<div class="overlay" id="rateOverlay">
+  <div class="panel">
+    <div class="panel-hdr"><span class="title" data-i18n="rateTitle"></span><button class="panel-close" id="rateClose">&times;</button></div>
+    <div class="panel-body" id="rateBody">
+      <div id="rateStep1">
+        <div class="modal-desc" data-i18n="rateAsk"></div>
+        <div class="stars" id="rateStars">
+          <span class="star" data-v="1">★</span><span class="star" data-v="2">★</span><span class="star" data-v="3">★</span><span class="star" data-v="4">★</span><span class="star" data-v="5">★</span>
+        </div>
+      </div>
+      <div id="rateStep2" style="display:none">
+        <div class="modal-desc" data-i18n="rateImpQ"></div>
+        <textarea class="modal-textarea" id="rateText" rows="4"></textarea>
+        <button class="modal-send" id="rateSend" data-i18n="rateSend"></button>
+      </div>
+      <div id="rateStep3" style="display:none">
+        <div class="modal-msg" id="rateMsg"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Donate overlay -->
+<div class="overlay" id="dnOverlay">
+  <div class="panel">
+    <div class="panel-hdr"><span class="title" data-i18n="dnTitle"></span><button class="panel-close" id="dnClose">&times;</button></div>
+    <div class="panel-body">
+      <div class="modal-desc" data-i18n="dnDesc"></div>
+      <div class="dn-amounts" id="dnAmounts">
+        <button class="dn-amt" data-amount="3">€3</button>
+        <button class="dn-amt active" data-amount="5">€5</button>
+        <button class="dn-amt" data-amount="10">€10</button>
+        <button class="dn-amt" data-amount="30">€30</button>
+      </div>
+      <a class="dn-stripe" id="dnStripe" href="https://buy.stripe.com/28E8wPerZ2YibS34gFcEw01" target="_blank" data-i18n="dnSupport"></a>
+      <span class="dn-already" id="dnAlready" data-i18n="dnAlready"></span>
+      <div id="dnThanks" style="display:none"><div class="modal-msg" data-i18n="dnThanks"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script src="popup.js"></script>
+</body>
+</html>

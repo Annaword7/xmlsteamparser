@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "XML Stream Parser",
+  "version": "2.0.0",
+  "description": "Stream-parse XML files up to 2GB using SAX + Web Workers",
+  "permissions": ["storage"],
+  "action": {
+    "default_title": "XML Stream Parser"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
