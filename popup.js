@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 
-const STORE_URL  = 'https://chromewebstore.google.com/detail/xml-stream-parser/PLACEHOLDER_ID/reviews';
+const STORE_URL  = 'https://chromewebstore.google.com/detail/xml-stream-parser/lippinogapmkocmbfdpkdlnbolimkloa/reviews';
 const STRIPE_URL = 'https://buy.stripe.com/28E8wPerZ2YibS34gFcEw01';
 
 // ═══════════════════════════════════════════════════════════════════
