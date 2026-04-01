@@ -4,7 +4,7 @@
  * - Proxies Telegram messages
  * - Manages supporter status
  */
-const PROXY_URL = 'https://YOUR-RAILWAY-APP.up.railway.app'; // ← replace with your proxy
+const PROXY_URL = 'https://xmlworker-production.up.railway.app';
 
 let parserTabId = null;
 
